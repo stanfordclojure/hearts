@@ -1,8 +1,8 @@
 (ns hearts-lecture.core
-  (:require [hearts-lecture.utils :refer [spy]]))
+  (:require [hearts-lecture.utils :refer [spy]]
+            [cljs.pprint :refer [pprint]]))
 
 (comment
-
   "DOCS:
   Entities:
   - deck
@@ -27,6 +27,7 @@
 ;; ==== BASIC CARD ==== ;;
 (def suits #{"H" "D" "S" "C"})
 (def ranks (concat (map str (range 2 10)) ["T" "J" "Q" "K" "A"]))
+(def start-card "2C")
 
 (def deck (for [suit suits
                 rank ranks]
@@ -40,7 +41,7 @@
 
 (defn deal-cards [n deck]
   (let [hand-size (quot (count deck) n)]
-   (partition hand-size deck)))
+    (partition hand-size deck)))
 
 (defn draw-card [n deck]
   (split-at n deck))
@@ -76,20 +77,17 @@
    :trick []})
 
 ;; ===== GAMEPLAY ===== ;;
-(defn starting-player
-  "input: vector of player maps
-  output: index of player with 2C
-  plan: convert player maps to hands
-  convert hands to presence of 2C
-  find index with true"
-  [players]
-  (map (fn [player index]
-         [index (some #{"2C"} (:hand player))])
-       players (range)))
+(defn starting-player [players]
+  (as-> players c
+    (map #(some #{start-card} (:hand %)) c)
+    (.indexOf c start-card)))
 
 (comment
   (def names ["allan" "adi" "jerry" "claire"])
-  (def players (:players (init-game-state players)))
+  (def state (init-game-state names))
+  (def players (:players state))
+  (pprint players)
+  (starting-player players)
   )
 
 

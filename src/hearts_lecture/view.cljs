@@ -1,4 +1,4 @@
-(ns hearts-lecture.core
+(ns hearts-lecture.view
   (:require
     [reagent.core :as r])
   (:require-macros
