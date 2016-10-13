@@ -1,36 +1,122 @@
 (ns hearts-lecture.view
   (:require
-    [reagent.core :as r])
-  (:require-macros
-   [devcards.core :as dc :refer [defcard-rg defcard-doc]]))
+    [reagent.core :as r]
+    [cljs.pprint :refer [pprint]]
+    [hearts.utils :as utils :refer [spy]]))
 
 (enable-console-print!)
 
-(defcard-doc
-  "
-# Hearts
-### THE PACK
-The standard 52-card pack is used.
+(def scale 1.2)
+(def card-width (* 80 scale))
+(def card-height (* 120 scale))
+(def board-size (* 600 scale))
 
-### OBJECT OF THE GAME
-To be the player with the lowest score at the end of the game. When one player hits the agreed-upon score or higher, the game ends; and the player with the lowest score wins.
+(def rank->name
+  (let [numbers (map str (range 2 10))]
+    (merge {"T" "10"
+            "A" "ace"
+            "J" "jack"
+            "Q" "queen"
+            "K" "king"}
+           (zipmap numbers numbers))))
 
-### CARD VALUES/SCORING
-At the end of each hand, players count the number of hearts they have taken as well as the queen of spades, if applicable. Hearts count as one point each and the queen counts 13 points.
-Each heart - 1 point
-The Q - 13 points
-The aggregate total of all scores for each hand must be a multiple of 26.
-The game is usually played to 100 points (some play to 50).
-When a player takes all 13 hearts and the queen of spades in one hand, instead of losing 26 points, that player scores zero and each of his opponents score an additional 26 points.
+(def suit->name {"D" "diamonds"
+                 "H" "hearts"
+                 "S" "spades"
+                 "C" "clubs"})
 
-### THE DEAL
-Deal the cards one at a time, face down, clockwise. In a four-player game, each is dealt 13 cards; in a three-player game, the 2 of diamonds should be removed, and each player gets 17 cards; in a five-player game, the 2 of diamonds and 2 of clubs should be removed so that each player will get 10 cards.
+(defn card->svg [card]
+  (if (= card "XX")
+    "img/cards/card_back.svg"
+    (let [[rank suit] card]
+      (str "img/cards/" (rank->name rank) "_of_" (suit->name suit) ".svg"))))
 
-# THE PLAY
-The player holding the 2 of clubs after the pass makes the opening lead. If the 2 has been removed for the three handed game, then the 3 of clubs is led.
+(defn card
+  ([c]
+   [card {} c])
+  ([opts c]
+   (let [default {:src (card->svg c)
+                  :style {:width card-width
+                          :height card-height
+                          :position :absolute}
+                  :on-click #(println "TODO")}]
+     [:img (merge-with conj default opts)])))
 
-Each player must follow suit if possible. If a player is void of the suit led, a card of any other suit may be discarded. However, if a player has no clubs when the first trick is led, a heart or the queen of spades cannot be discarded. The highest card of the suit led wins a trick and the winner of that trick leads next. There is no trump suit.
+(defn hand
+  ([cards]
+   [hand {} cards])
+  ([opts cards]
+   (let [offset #(identity {:style {:left (* (/ card-width 5) %)}})
+         default-style {:style {:height card-height
+                                :position :relative}}]
+     (into [:div (merge-with conj default-style opts)]
+           (map-indexed #(identity [card (offset %1) %2]) cards)))))
 
-The winner of the trick collects it and places it face down. Hearts may not be led until a heart or the queen of spades has been discarded. The queen does not have to be discarded at the first opportunity.
+(defn trick
+  ([cards]
+   [trick {} cards])
+  ([opts {:keys [N E S W] :as cards}]
+   (let [separation card-width
+         -separation (- separation)
+         x-offset (/ card-height 4)
+         style-map {N {:class "rot-180"
+                       :style {:top -separation}}
+                    W {:class "rot-90"
+                       :style {:left -separation}}
+                    E {:class "rot-90"
+                       :style {:left separation}}
+                    S {:style {:top separation}}}
+         items (remove #(nil? (key %)) style-map)
+         default {:style {:height (* 2 card-height)
+                          :position :relative}}]
+     (when (seq cards)
+       (into [:div (merge-with conj default opts)]
+             (map #(into [card] (reverse %)) items))))))
 
-The queen can be led at any time.  ")
+(defn one-hand [[_ opt] cards]
+  [hand (merge-with conj {:style {:position :absolute}} opt) cards])
+
+(defn center-trick [cards]
+  (let [offset #(-> board-size (- %) (/ 2))]
+    [trick {:style {:top (offset card-height)
+                    :right (- (offset card-width))
+                    :pointer-events :none}}
+     cards]))
+
+(defn score [index player]
+  [:div {:style {:display :inline-block
+                 :width (/ board-size 4)}}
+   [:h3 "Player TODO"]
+   [:p "Score: TODO"]])
+
+(defn game [state]
+  (fn [state]
+   (let [{:keys [ntrick turn players trick exception]} @state
+        positions (zipmap [:S :E :N :W] players)
+        hands (map :hand players)
+        rot-x-offset (/ card-height 2)
+        rot-y-offset (-> board-size (- (/ card-height 2)))
+        dir-order [:S :E :N :W]
+        dir-opts {:S {:style {:bottom 0}}
+                  :E {:class "rot-270"
+                      :style {:right rot-x-offset
+                              :top rot-y-offset}}
+                  :N {:class "rot-180"
+                      :style {:left board-size}}
+                  :W {:class "rot-90"
+                      :style {:left rot-x-offset
+                              :bottom rot-y-offset}}}
+        n-players (count players)
+        start-dir (- n-players (mod (- ntrick turn) n-players))]
+    [:div
+     [:h1 "Player " (inc turn) "'s move (" (nth dir-order turn) ")"]
+     [:h3 {:style {:color :red}}
+      (when exception (.-message exception))]
+     [:div {:style {:width board-size
+                    :height board-size
+                    :background-color "#265C33"
+                    :position :relative}}
+      (into [:div] (mapv one-hand dir-opts hands))
+      [center-trick (zipmap (drop start-dir (cycle dir-order)) trick)]]
+     (into [:div] (map-indexed score players))])))
+

@@ -28,7 +28,7 @@
                                    ;; started and complied your application.
                                    ;; Comment this out once it no longer serves you.
                                    :open-urls ["http://localhost:3449/cards.html"]}
-                        :compiler { :main       "hearts-lecture.view"
+                        :compiler { :main       "hearts-lecture.dev.cards"
                                     :asset-path "js/compiled/devcards_out"
                                     :output-to  "resources/public/js/compiled/hearts_lecture_devcards.js"
                                     :output-dir "resources/public/js/compiled/devcards_out"
